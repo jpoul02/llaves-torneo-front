@@ -1244,7 +1244,9 @@ function koMatchEl(m, r, i) {
     const isBye = name === "BYE";
     const row = el("div", "po-row");
     const nm = el("div", "fx-team");
-    nm.textContent = name || "—";
+    const nameSpan = el("span", "fx-name"); nameSpan.textContent = name || "—";
+    nm.append(nameSpan);
+    if (name && !isBye) { const tag = el("span", "fx-tag"); tag.textContent = which === 1 ? "Local" : "Visitante"; nm.append(tag); }
     if (isWin) nm.classList.add("win");
     if (m.winner && m.winner !== which && !isBye) nm.classList.add("loss");
     if (isBye || !name) nm.classList.add("loss");
