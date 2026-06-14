@@ -489,6 +489,30 @@
   .dlg-actions .btn { height: 42px; }
   .dlg-modal.danger #dlgOk { background: var(--red); border-color: var(--red); color: #fff; }
 
+  /* ---------- print / PDF ---------- */
+  @media print {
+    :root {
+      --bg: #fff; --panel: #fff; --panel-2: #fff; --line: #c4c4c4;
+      --ink: #000; --muted: #555; --lime: #1d7a1d; --lime-dim: #1d7a1d; --gold: #9a7510;
+    }
+    @page { margin: 12mm; }
+    * { animation: none !important; box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { background: #fff !important; }
+    body::before, .top-actions, footer.foot, .sync-pill, .ro-badge, #setupView, #waitingView, .overlay { display: none !important; }
+    .wrap { padding: 0 !important; max-width: 100% !important; }
+    header.top { border-bottom: 2px solid #000; margin-bottom: 14px; padding-bottom: 10px; }
+    .brand h1 { font-size: 34px !important; }
+    .brand h1 span { color: #1d7a1d !important; }
+    .bracket { overflow: visible !important; flex-wrap: nowrap; }
+    .league-grid { grid-template-columns: 1fr 1fr !important; }
+    .match, .fixture, .standings, .playoff, .champ, .champ-banner, .po-row input, .fx-score input {
+      border-color: #c4c4c4 !important;
+    }
+    input { color: #000 !important; }
+    .jornada, .match, .fixture, .hist-item { break-inside: avoid; }
+    .bracket-meta { color: #555 !important; }
+  }
+
   .hidden { display: none !important; }
 
   footer.foot {
@@ -516,6 +540,7 @@
     <div class="top-actions">
       <span class="ro-badge" id="roBadge" hidden><span class="live-dot"></span><span id="roBadgeText">Solo lectura</span></span>
       <button class="btn btn-ghost icon-btn" id="btnTheme" type="button" aria-label="Cambiar tema" title="Cambiar tema"><span id="themeIcon">☾</span></button>
+      <button class="btn btn-ghost" id="btnPrint" type="button">🖨 Imprimir</button>
       <button class="btn btn-ghost" id="btnUnlock" type="button">🔓 Editar</button>
       <button class="btn btn-ghost admin-only" id="btnSave" hidden>⭳ Guardar</button>
       <button class="btn btn-ghost admin-only" id="btnHistory" type="button">🗂 Historial</button>
@@ -1536,6 +1561,7 @@ document.addEventListener("keydown", (e) => {
   else closeHistory();
 });
 $("#btnUnlock").addEventListener("click", unlockEditing);
+$("#btnPrint").addEventListener("click", () => window.print());
 $("#btnExport").addEventListener("click", exportState);
 $("#btnImport").addEventListener("click", importState);
 
