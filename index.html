@@ -339,10 +339,13 @@
     animation: matchIn 320ms var(--ease-out) both;
   }
   .fixture.done { border-color: #2a3a22; }
-  .fx-team { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fx-team.home { text-align: right; }
-  .fx-team.win { color: var(--lime); font-weight: 700; }
-  .fx-team.loss { color: var(--muted); }
+  .fx-team { font-size: 13px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .fx-team .fx-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fx-team.home { text-align: right; align-items: flex-end; }
+  .fx-team.away { align-items: flex-start; }
+  .fx-tag { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .fx-team.win .fx-name { color: var(--lime); font-weight: 700; }
+  .fx-team.loss .fx-name { color: var(--muted); }
   .fx-score { display: flex; align-items: center; gap: 6px; }
   .fx-score input {
     width: 38px; height: 38px; text-align: center;
@@ -1311,6 +1314,14 @@ function renderStandings() {
   t.append(tb);
 }
 
+function teamCell(name, side, tagText) {
+  const cell = el("div", "fx-team " + side);
+  const nm = el("span", "fx-name"); nm.textContent = name;
+  const tag = el("span", "fx-tag"); tag.textContent = tagText;
+  cell.append(nm, tag);
+  return cell;
+}
+
 function renderFixtures() {
   const root = $("#fixtures");
   root.innerHTML = "";
@@ -1332,9 +1343,8 @@ function renderFixtures() {
       }
       const done = m.hg != null && m.ag != null;
       const fx = el("div", "fixture" + (done ? " done" : ""));
-      const home = el("div", "fx-team home");
-      const away = el("div", "fx-team away");
-      home.textContent = m.home; away.textContent = m.away;
+      const home = teamCell(m.home, "home", "Local");
+      const away = teamCell(m.away, "away", "Visitante");
       if (done) {
         if (m.hg > m.ag) { home.classList.add("win"); away.classList.add("loss"); }
         else if (m.hg < m.ag) { away.classList.add("win"); home.classList.add("loss"); }
