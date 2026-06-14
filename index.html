@@ -489,6 +489,17 @@
   .dlg-actions .btn { height: 42px; }
   .dlg-modal.danger #dlgOk { background: var(--red); border-color: var(--red); color: #fff; }
 
+  /* ---------- double elimination ---------- */
+  .de-block { margin-bottom: 30px; }
+  .de-title {
+    font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .de-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .de-title.win { color: var(--lime); }
+  .de-title.lose { color: var(--muted); }
+  .de-title.final { color: var(--gold); }
+
   /* ---------- print / PDF ---------- */
   @media print {
     :root {
@@ -570,6 +581,7 @@
         <div class="segmented" id="formatSeg">
           <button type="button" class="seg active" data-fmt="league">⚽ Liga</button>
           <button type="button" class="seg" data-fmt="elim">🏆 Eliminación</button>
+          <button type="button" class="seg" data-fmt="double">🔀 Doble elim</button>
         </div>
       </div>
       <div class="field">
@@ -601,6 +613,24 @@
   <section id="bracketView" class="hidden">
     <div class="bracket-meta" id="bracketMeta"></div>
     <div class="bracket" id="bracket"></div>
+  </section>
+
+  <!-- DOUBLE ELIMINATION -->
+  <section id="doubleView" class="hidden">
+    <div class="bracket-meta" id="doubleMeta"></div>
+    <div id="doubleChampZone"></div>
+    <div class="de-block">
+      <h3 class="de-title win">🏆 Llave de ganadores</h3>
+      <div class="bracket" id="wbBracket"></div>
+    </div>
+    <div class="de-block">
+      <h3 class="de-title lose">🥈 Llave de perdedores</h3>
+      <div class="bracket" id="lbBracket"></div>
+    </div>
+    <div class="de-block">
+      <h3 class="de-title final">🔥 Gran final</h3>
+      <div class="bracket" id="gfBracket"></div>
+    </div>
   </section>
 
   <!-- LEAGUE -->
@@ -730,7 +760,7 @@ function subscribeLive() {
 function applyRemote(state) {
   if (!state) { STATE = null; showWaiting(); return; }
   STATE = state;
-  if (!STATE.format) STATE.format = STATE.fixtures ? "league" : "elim";
+  if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim");
   showTournament();
 }
 
@@ -771,6 +801,10 @@ function fmtDate(ts) {
 }
 
 function summarize(state) {
+  if (state.format === "double") {
+    const champ = deChampion(state);
+    return (champ && champ !== "BYE") ? { label: "Campeón", who: champ, done: true } : { label: "En juego", who: "—", done: false };
+  }
   if (state.format === "elim") {
     const fr = state.rounds[state.rounds.length - 1][0];
     const champ = fr.winner ? (fr.winner === 1 ? fr.p1 : fr.p2) : null;
@@ -787,7 +821,7 @@ function summarize(state) {
 
 async function saveCurrent() {
   if (!STATE) return;
-  const def = (STATE.format === "elim" ? "Eliminación" : "Liga") + " · " + STATE.teams.length + " equipos";
+  const def = fmtLabel(STATE.format) + " · " + STATE.teams.length + " equipos";
   const raw = await uiPrompt("Nombre del torneo:", { title: "⭳ Guardar", value: def });
   if (raw == null) return;
   const name = raw.trim();
@@ -811,7 +845,7 @@ function loadSavedTournament(id) {
   if (!entry) return;
   STATE = JSON.parse(JSON.stringify(entry.state));
   STATE._id = id;
-  if (!STATE.format) STATE.format = STATE.fixtures ? "league" : "elim";
+  if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim");
   selectedFormat = STATE.format;
   setupNames = STATE.teams.slice();
   save(STATE);
@@ -850,11 +884,11 @@ function renderHistory() {
     const s = entry.state;
     const sum = summarize(s);
     const item = el("div", "hist-item");
-    const badge = el("div", "hist-badge"); badge.textContent = s.format === "elim" ? "🏆" : "⚽";
+    const badge = el("div", "hist-badge"); badge.textContent = fmtIcon(s.format);
     const info = el("div", "hist-info");
     const nm = el("div", "hist-name"); nm.textContent = entry.name;
     const meta = el("div", "hist-meta");
-    meta.innerHTML = (s.format === "elim" ? "Eliminación" : "Liga") + " · " + s.teams.length + " equipos · " +
+    meta.innerHTML = fmtLabel(s.format) + " · " + s.teams.length + " equipos · " +
                      fmtDate(entry.date) + " · " + sum.label + ": <b>" + escapeHtml(sum.who) + "</b>";
     info.append(nm, meta);
     const actions = el("div", "hist-actions");
@@ -871,6 +905,8 @@ function renderHistory() {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+function fmtLabel(f) { return f === "elim" ? "Eliminación" : f === "double" ? "Doble elim" : "Liga"; }
+function fmtIcon(f) { return f === "elim" ? "🏆" : f === "double" ? "🔀" : "⚽"; }
 
 /* ---------- setup UI ---------- */
 function renderNameInputs() {
@@ -1089,6 +1125,174 @@ function renderMeta() {
   meta.append(dot());
   add(done);
   function dot() { return el("span", "dot"); }
+}
+
+/* ============================================================
+   DOUBLE ELIMINATION — winners + losers bracket + gran final
+   ============================================================ */
+function deMk(a, b) { return { a, b, p1: null, p2: null, w: null }; }
+
+function buildDouble(teams) {
+  const size = nextPow2(teams.length);
+  const k = Math.round(Math.log2(size));
+  const order = seedOrder(size);
+  const padded = teams.slice();
+  while (padded.length < size) padded.push("BYE");
+  const seeded = order.map(idx => padded[idx]);
+
+  // winners bracket
+  const wb = [];
+  const r0 = [];
+  for (let i = 0; i < size; i += 2) r0.push(deMk({ s: "seed", v: seeded[i] }, { s: "seed", v: seeded[i + 1] }));
+  wb.push(r0);
+  for (let r = 1; r < k; r++) {
+    const cnt = size >> (r + 1);
+    const arr = [];
+    for (let i = 0; i < cnt; i++) arr.push(deMk({ s: "wbW", r: r - 1, i: 2 * i }, { s: "wbW", r: r - 1, i: 2 * i + 1 }));
+    wb.push(arr);
+  }
+
+  // losers bracket
+  const lb = [];
+  let lbFinalIdx = -1;
+  if (size >= 4) {
+    const l1 = [];
+    for (let i = 0; i < (size >> 2); i++) l1.push(deMk({ s: "wbL", r: 0, i: 2 * i }, { s: "wbL", r: 0, i: 2 * i + 1 }));
+    lb.push(l1);
+    let lbIdx = 0;
+    for (let wr = 1; wr < k; wr++) {
+      const majCnt = size >> (wr + 1);
+      const maj = [];
+      for (let i = 0; i < majCnt; i++) maj.push(deMk({ s: "lbW", r: lbIdx, i }, { s: "wbL", r: wr, i }));
+      lb.push(maj); lbIdx++;
+      if (wr < k - 1) {
+        const mn = [];
+        for (let i = 0; i < (majCnt >> 1); i++) mn.push(deMk({ s: "lbW", r: lbIdx, i: 2 * i }, { s: "lbW", r: lbIdx, i: 2 * i + 1 }));
+        lb.push(mn); lbIdx++;
+      }
+    }
+    lbFinalIdx = lbIdx;
+  }
+
+  let gf;
+  if (size >= 4) gf = deMk({ s: "wbW", r: k - 1, i: 0 }, { s: "lbW", r: lbFinalIdx, i: 0 });
+  else gf = deMk({ s: "wbW", r: 0, i: 0 }, { s: "wbL", r: 0, i: 0 });
+
+  const st = { format: "double", teams: teams.slice(), wb, lb, gf };
+  resolveDouble(st);
+  return st;
+}
+
+function deWinner(m) {
+  if (!m || !m.p1 || !m.p2) return null;
+  if (m.p1 === "BYE" && m.p2 === "BYE") return "BYE";
+  if (m.p1 === "BYE") return m.p2;
+  if (m.p2 === "BYE") return m.p1;
+  return (m.w === m.p1 || m.w === m.p2) ? m.w : null;
+}
+function deLoser(m) {
+  if (!m || !m.p1 || !m.p2) return null;
+  if (m.p1 === "BYE" || m.p2 === "BYE") return "BYE";
+  const w = deWinner(m);
+  if (!w) return null;
+  return w === m.p1 ? m.p2 : m.p1;
+}
+function deFeeder(st, f) {
+  if (!f) return null;
+  if (f.s === "seed") return f.v || null;
+  if (f.s === "wbW") return deWinner(st.wb[f.r][f.i]);
+  if (f.s === "wbL") return deLoser(st.wb[f.r][f.i]);
+  if (f.s === "lbW") return deWinner(st.lb[f.r][f.i]);
+  return null;
+}
+function resolveDouble(st) {
+  const fill = (m) => {
+    m.p1 = deFeeder(st, m.a);
+    m.p2 = deFeeder(st, m.b);
+    if (m.w && m.w !== m.p1 && m.w !== m.p2) m.w = null; // stale decision
+  };
+  st.wb.forEach(round => round.forEach(fill));
+  st.lb.forEach(round => round.forEach(fill));
+  if (st.gf) fill(st.gf);
+}
+function deChampion(st) { return st.gf ? deWinner(st.gf) : null; }
+
+function setDoubleWinner(kind, r, i, name) {
+  let m;
+  if (kind === "wb") m = STATE.wb[r][i];
+  else if (kind === "lb") m = STATE.lb[r][i];
+  else m = STATE.gf;
+  m.w = name;
+  resolveDouble(STATE);
+  save(STATE);
+  renderDouble();
+}
+
+function renderDouble() {
+  deMeta();
+  const champ = deChampion(STATE);
+  const zone = $("#doubleChampZone"); zone.innerHTML = "";
+  if (champ && champ !== "BYE") zone.append(champBanner(champ, "Campeón"));
+  renderDeBracket($("#wbBracket"), STATE.wb, "wb");
+  renderDeBracket($("#lbBracket"), STATE.lb.length ? STATE.lb : [], "lb");
+  renderDeBracket($("#gfBracket"), STATE.gf ? [[STATE.gf]] : [], "gf");
+  $("#lbBracket").parentElement.style.display = STATE.lb.length ? "" : "none";
+}
+
+function deMeta() {
+  const meta = $("#doubleMeta"); meta.innerHTML = "";
+  const champ = deChampion(STATE);
+  const add = (html) => { const s = el("span"); s.innerHTML = html; meta.append(s); };
+  add("<b>" + STATE.teams.length + "</b> equipos");
+  meta.append(el("span", "dot"));
+  add("Doble eliminación");
+  meta.append(el("span", "dot"));
+  add(champ && champ !== "BYE" ? "Finalizado" : "En juego");
+}
+
+function deRoundLabel(kind, r, total) {
+  if (kind === "gf") return "Gran final";
+  if (kind === "wb") return r === total - 1 ? "Final ganadores" : "Ganadores R" + (r + 1);
+  return r === total - 1 ? "Final perdedores" : "Perdedores R" + (r + 1);
+}
+
+function renderDeBracket(root, rounds, kind) {
+  root.innerHTML = "";
+  rounds.forEach((round, r) => {
+    const col = el("div", "round");
+    const head = el("div", "round-head" + (kind === "gf" ? " is-final" : ""));
+    head.textContent = deRoundLabel(kind, r, rounds.length);
+    col.append(head);
+    const matches = el("div", "matches");
+    round.forEach((m, i) => {
+      const mEl = el("div", "match");
+      mEl.style.animationDelay = (r * 50 + i * 20) + "ms";
+      mEl.append(deSlot(m, 1, kind, r, i), deSlot(m, 2, kind, r, i));
+      matches.append(mEl);
+    });
+    col.append(matches);
+    root.append(col);
+  });
+}
+
+function deSlot(m, which, kind, r, i) {
+  const name = which === 1 ? m.p1 : m.p2;
+  const s = el("div", "slot");
+  const win = deWinner(m);
+  const isTbd = !name;
+  const isBye = name === "BYE";
+  const isWinner = win && name === win && !isBye;
+  const isLoser = win && win !== "BYE" && name && name !== win && !isBye;
+  if (isTbd) s.classList.add("tbd");
+  if (isBye) s.classList.add("bye");
+  if (isWinner) s.classList.add("winner");
+  if (isLoser) s.classList.add("loser");
+  const nm = el("span", "nm"); nm.textContent = isTbd ? "—" : name;
+  s.append(nm);
+  if (!isTbd && !isBye && !READONLY) {
+    s.addEventListener("click", () => setDoubleWinner(kind, r, i, name));
+  }
+  return s;
 }
 
 /* ============================================================
@@ -1469,15 +1673,21 @@ function showTournament() {
   $("#btnEdit").hidden = READONLY;
   $("#btnReset").hidden = READONLY;
   $("#btnSave").hidden = READONLY;
+  $("#bracketView").classList.add("hidden");
+  $("#leagueView").classList.add("hidden");
+  $("#doubleView").classList.add("hidden");
+  const roHint = "👁 Solo lectura · se actualiza en vivo";
   if (STATE.format === "elim") {
     $("#bracketView").classList.remove("hidden");
-    $("#leagueView").classList.add("hidden");
-    $("#footHint").textContent = READONLY ? "👁 Solo lectura · se actualiza en vivo" : "Click en un equipo = avanza como ganador";
+    $("#footHint").textContent = READONLY ? roHint : "Click en un equipo = avanza como ganador";
     renderBracket();
+  } else if (STATE.format === "double") {
+    $("#doubleView").classList.remove("hidden");
+    $("#footHint").textContent = READONLY ? roHint : "Click en el ganador de cada partido";
+    renderDouble();
   } else {
     $("#leagueView").classList.remove("hidden");
-    $("#bracketView").classList.add("hidden");
-    $("#footHint").textContent = READONLY ? "👁 Solo lectura · se actualiza en vivo" : "Anota los goles de cada partido";
+    $("#footHint").textContent = READONLY ? roHint : "Anota los goles de cada partido";
     renderLeague();
   }
 }
@@ -1492,6 +1702,8 @@ function generate() {
   }
   if (selectedFormat === "elim") {
     STATE = { format: "elim", teams, rounds: buildRounds(teams) };
+  } else if (selectedFormat === "double") {
+    STATE = buildDouble(teams);
   } else {
     STATE = { format: "league", legs: selectedLegs, teams, fixtures: buildLeague(teams, selectedLegs) };
   }
@@ -1504,8 +1716,8 @@ function setFormatUI(fmt) {
   document.querySelectorAll("#formatSeg .seg").forEach(b => {
     b.classList.toggle("active", b.dataset.fmt === fmt);
   });
-  $("#legsField").style.display = fmt === "elim" ? "none" : "";
-  $("#btnGenerate").textContent = fmt === "elim" ? "⚡ Generar llaves" : "⚡ Generar liga";
+  $("#legsField").style.display = fmt === "league" ? "" : "none";
+  $("#btnGenerate").textContent = fmt === "league" ? "⚡ Generar liga" : "⚡ Generar llaves";
 }
 
 function setLegsUI(legs) {
@@ -1619,13 +1831,13 @@ async function importState() {
   let data;
   try { data = JSON.parse(raw.trim()); }
   catch { await uiAlert("JSON inválido."); return; }
-  if (!data || !data.teams || !(data.rounds || data.fixtures)) {
-    await uiAlert("El JSON no parece un torneo válido (falta teams/rounds/fixtures).");
+  if (!data || !data.teams || !(data.rounds || data.fixtures || data.wb)) {
+    await uiAlert("El JSON no parece un torneo válido.");
     return;
   }
   delete data._id; // entra como torneo activo, no atado a historial
   STATE = data;
-  if (!STATE.format) STATE.format = STATE.fixtures ? "league" : "elim";
+  if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim");
   selectedFormat = STATE.format;
   selectedLegs = STATE.legs || 1;
   setupNames = STATE.teams.slice();
@@ -1665,7 +1877,7 @@ async function unlockEditing() {
   // re-sync from server then show
   const srv = await serverGet();
   STATE = (srv === undefined) ? STATE : srv;
-  if (STATE) { if (!STATE.format) STATE.format = STATE.fixtures ? "league" : "elim"; selectedFormat = STATE.format; setupNames = STATE.teams.slice(); showTournament(); }
+  if (STATE) { if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim"); selectedFormat = STATE.format; setupNames = STATE.teams.slice(); showTournament(); }
   else { syncCount(8); showSetup(); }
 }
 
@@ -1679,9 +1891,9 @@ async function unlockEditing() {
   applyRoleUI();
 
   const srv = await serverGet();
-  if (srv && srv.teams && (srv.rounds || srv.fixtures)) {
+  if (srv && srv.teams && (srv.rounds || srv.fixtures || srv.wb)) {
     STATE = srv;
-    if (!STATE.format) STATE.format = STATE.fixtures ? "league" : "elim";
+    if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim");
     selectedFormat = STATE.format;
     setupNames = STATE.teams.slice();
     showTournament();
