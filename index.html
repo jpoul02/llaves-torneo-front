@@ -583,6 +583,7 @@
       <button class="btn btn-ghost admin-only" id="btnHistory" type="button">🗂 Historial</button>
       <button class="btn btn-ghost admin-only" id="btnExport" type="button">⤓ Exportar</button>
       <button class="btn btn-ghost admin-only" id="btnImport" type="button">⤴ Importar</button>
+      <button class="btn btn-ghost admin-only" id="btnAddTeam" hidden>➕ Equipo</button>
       <button class="btn btn-ghost admin-only" id="btnEdit" hidden>✎ Editar equipos</button>
       <button class="btn btn-danger btn-ghost admin-only" id="btnReset" hidden>↺ Reiniciar</button>
     </div>
@@ -1691,6 +1692,7 @@ function showWaiting() {
   $("#btnEdit").hidden = true;
   $("#btnReset").hidden = true;
   $("#btnSave").hidden = true;
+  $("#btnAddTeam").hidden = true;
 }
 function showSetup() {
   $("#waitingView").classList.add("hidden");
@@ -1700,6 +1702,7 @@ function showSetup() {
   $("#btnEdit").hidden = true;
   $("#btnReset").hidden = true;
   $("#btnSave").hidden = true;
+  $("#btnAddTeam").hidden = true;
   setFormatUI(selectedFormat);
   setLegsUI(selectedLegs);
   renderNameInputs();
@@ -1710,6 +1713,7 @@ function showTournament() {
   $("#btnEdit").hidden = READONLY;
   $("#btnReset").hidden = READONLY;
   $("#btnSave").hidden = READONLY;
+  $("#btnAddTeam").hidden = READONLY;
   $("#bracketView").classList.add("hidden");
   $("#leagueView").classList.add("hidden");
   $("#doubleView").classList.add("hidden");
@@ -1792,6 +1796,69 @@ $("#btnEdit").addEventListener("click", () => {
   }
   showSetup();
 });
+$("#btnAddTeam").addEventListener("click", addTeamEmergency);
+
+/* ---------- adición de emergencia (equipo extra al torneo en curso) ---------- */
+function collectPairResults(state) {
+  const map = new Map();
+  state.fixtures.forEach(r => r.forEach(m => {
+    if (m.bye || m.hg == null || m.ag == null) return;
+    const [a, b] = [m.home, m.away].slice().sort();
+    const ag = a === m.home ? m.hg : m.ag;
+    const bg = a === m.home ? m.ag : m.hg;
+    const k = a + "|" + b;
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push({ a, b, ag, bg });
+  }));
+  return map;
+}
+function reapplyPairResults(state, map) {
+  const q = new Map();
+  map.forEach((v, k) => q.set(k, v.slice()));
+  state.fixtures.forEach(r => r.forEach(m => {
+    if (m.bye) return;
+    const [a, b] = [m.home, m.away].slice().sort();
+    const arr = q.get(a + "|" + b);
+    if (arr && arr.length) {
+      const res = arr.shift();
+      if (m.home === res.a) { m.hg = res.ag; m.ag = res.bg; }
+      else { m.hg = res.bg; m.ag = res.ag; }
+    }
+  }));
+}
+
+async function addTeamEmergency() {
+  if (!STATE) return;
+  const raw = await uiPrompt("Nombre del equipo a agregar:", { title: "➕ Adición de emergencia" });
+  if (raw == null) return;
+  const name = raw.trim();
+  if (!name) return;
+  if (STATE.teams.includes(name)) { await uiAlert("Ya existe un equipo con ese nombre."); return; }
+
+  if (STATE.format === "league") {
+    const old = collectPairResults(STATE);
+    STATE.teams.push(name);
+    STATE.fixtures = buildLeague(STATE.teams, STATE.legs || 1);
+    reapplyPairResults(STATE, old);
+    save(STATE);
+    showTournament();
+    flashBtn($("#btnAddTeam"), "✓ Agregado");
+  } else {
+    const ok = await uiConfirm("En formato de llaves, agregar un equipo reconstruye el cuadro y se pierden los resultados. ¿Continuar?", { title: "Reconstruir llave", okText: "Continuar", danger: true });
+    if (!ok) return;
+    STATE.teams.push(name);
+    if (STATE.format === "double") {
+      const id = STATE._id;
+      STATE = buildDouble(STATE.teams);
+      if (id) STATE._id = id;
+    } else {
+      STATE.rounds = buildRounds(STATE.teams);
+    }
+    save(STATE);
+    showTournament();
+    flashBtn($("#btnAddTeam"), "✓ Agregado");
+  }
+}
 $("#btnReset").addEventListener("click", async () => {
   const ok = await uiConfirm("¿Reiniciar el torneo? Se borra para todos los que lo ven.", { title: "Reiniciar", okText: "Reiniciar", danger: true });
   if (!ok) return;
