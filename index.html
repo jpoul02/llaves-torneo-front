@@ -503,6 +503,8 @@
       <button class="btn btn-ghost" id="btnUnlock" type="button">🔓 Editar</button>
       <button class="btn btn-ghost admin-only" id="btnSave" hidden>⭳ Guardar</button>
       <button class="btn btn-ghost admin-only" id="btnHistory" type="button">🗂 Historial</button>
+      <button class="btn btn-ghost admin-only" id="btnExport" type="button">⤓ Exportar</button>
+      <button class="btn btn-ghost admin-only" id="btnImport" type="button">⤴ Importar</button>
       <button class="btn btn-ghost admin-only" id="btnEdit" hidden>✎ Editar equipos</button>
       <button class="btn btn-danger btn-ghost admin-only" id="btnReset" hidden>↺ Reiniciar</button>
     </div>
@@ -1498,6 +1500,41 @@ $("#btnCloseHistory").addEventListener("click", closeHistory);
 $("#historyModal").addEventListener("click", (e) => { if (e.target === $("#historyModal")) closeHistory(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeHistory(); });
 $("#btnUnlock").addEventListener("click", unlockEditing);
+$("#btnExport").addEventListener("click", exportState);
+$("#btnImport").addEventListener("click", importState);
+
+/* ---------- export / import ---------- */
+async function exportState() {
+  if (!STATE) { alert("No hay torneo activo para exportar."); return; }
+  const json = JSON.stringify(STATE);
+  try {
+    await navigator.clipboard.writeText(json);
+    flashBtn($("#btnExport"), "✓ Copiado");
+  } catch {
+    prompt("Copia este JSON:", json);
+  }
+}
+
+function importState() {
+  const raw = prompt("Pega el JSON del torneo:");
+  if (!raw) return;
+  let data;
+  try { data = JSON.parse(raw.trim()); }
+  catch { alert("JSON inválido."); return; }
+  if (!data || !data.teams || !(data.rounds || data.fixtures)) {
+    alert("El JSON no parece un torneo válido (falta teams/rounds/fixtures).");
+    return;
+  }
+  delete data._id; // entra como torneo activo, no atado a historial
+  STATE = data;
+  if (!STATE.format) STATE.format = STATE.fixtures ? "league" : "elim";
+  selectedFormat = STATE.format;
+  selectedLegs = STATE.legs || 1;
+  setupNames = STATE.teams.slice();
+  save(STATE);          // si sos admin, lo empuja al server
+  showTournament();
+  flashBtn($("#btnImport"), "✓ Importado");
+}
 
 /* ---------- role UI ---------- */
 function setSyncPill(ok) {
