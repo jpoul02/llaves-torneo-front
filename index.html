@@ -473,6 +473,22 @@
   }
   .waiting .big { font-family: "Anton", sans-serif; font-size: clamp(28px, 6vw, 56px); text-transform: uppercase; color: var(--ink); margin-bottom: 12px; }
 
+  /* ---------- dialog (alert/confirm/prompt) ---------- */
+  .dlg-modal { width: min(460px, 100%); }
+  .dlg-title { font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: 0.04em; font-size: 19px; margin-bottom: 8px; }
+  .dlg-msg { color: var(--muted); font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+  .dlg-msg:empty { display: none; }
+  .dlg-input {
+    width: 100%; margin-top: 14px; resize: vertical;
+    background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px;
+    font-family: "Spline Sans Mono", monospace; font-size: 13px; line-height: 1.4;
+  }
+  .dlg-input:focus { outline: none; border-color: var(--lime-dim); }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .dlg-actions .btn { height: 42px; }
+  .dlg-modal.danger #dlgOk { background: var(--red); border-color: var(--red); color: #fff; }
+
   .hidden { display: none !important; }
 
   footer.foot {
@@ -593,6 +609,19 @@
     </div>
     <p class="modal-hint" id="historyHint"></p>
     <div class="history-list" id="historyList"></div>
+  </div>
+</div>
+
+<!-- DIALOG (alert / confirm / prompt) -->
+<div class="overlay hidden" id="dlg">
+  <div class="modal dlg-modal">
+    <h3 id="dlgTitle" class="dlg-title"></h3>
+    <p id="dlgMsg" class="dlg-msg"></p>
+    <textarea id="dlgInput" class="dlg-input hidden" rows="1" autocomplete="off"></textarea>
+    <div class="dlg-actions">
+      <button class="btn btn-ghost" id="dlgCancel" type="button">Cancelar</button>
+      <button class="btn btn-primary" id="dlgOk" type="button">Aceptar</button>
+    </div>
   </div>
 </div>
 
@@ -731,10 +760,12 @@ function summarize(state) {
   }
 }
 
-function saveCurrent() {
+async function saveCurrent() {
   if (!STATE) return;
   const def = (STATE.format === "elim" ? "Eliminación" : "Liga") + " · " + STATE.teams.length + " equipos";
-  const name = (prompt("Nombre del torneo:", def) || "").trim();
+  const raw = await uiPrompt("Nombre del torneo:", { title: "⭳ Guardar", value: def });
+  if (raw == null) return;
+  const name = raw.trim();
   if (!name) return;
   const arr = getSaved();
   const snapshot = JSON.parse(JSON.stringify(STATE));
@@ -763,8 +794,9 @@ function loadSavedTournament(id) {
   showTournament();
 }
 
-function deleteSavedTournament(id) {
-  if (!confirm("¿Borrar este torneo del historial?")) return;
+async function deleteSavedTournament(id) {
+  const ok = await uiConfirm("¿Borrar este torneo del historial?", { title: "Borrar", okText: "Borrar", danger: true });
+  if (!ok) return;
   setSaved(getSaved().filter(e => e.id !== id));
   renderHistory();
 }
@@ -1486,43 +1518,83 @@ $("#btnEdit").addEventListener("click", () => {
   }
   showSetup();
 });
-$("#btnReset").addEventListener("click", () => {
-  if (confirm("¿Reiniciar el torneo? Se borra para todos los que lo ven.")) {
-    clearSaved(); STATE = null; setupNames = []; $("#count").value = 8;
-    schedulePush(); // empuja null → otros vuelven a "esperando"
-    showSetup();
-  }
+$("#btnReset").addEventListener("click", async () => {
+  const ok = await uiConfirm("¿Reiniciar el torneo? Se borra para todos los que lo ven.", { title: "Reiniciar", okText: "Reiniciar", danger: true });
+  if (!ok) return;
+  clearSaved(); STATE = null; setupNames = []; $("#count").value = 8;
+  schedulePush(); // empuja null → otros vuelven a "esperando"
+  showSetup();
 });
 $("#btnTheme").addEventListener("click", toggleTheme);
 $("#btnSave").addEventListener("click", saveCurrent);
 $("#btnHistory").addEventListener("click", openHistory);
 $("#btnCloseHistory").addEventListener("click", closeHistory);
 $("#historyModal").addEventListener("click", (e) => { if (e.target === $("#historyModal")) closeHistory(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeHistory(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!$("#dlg").classList.contains("hidden")) dlgClose(dlgMode.input ? null : false);
+  else closeHistory();
+});
 $("#btnUnlock").addEventListener("click", unlockEditing);
 $("#btnExport").addEventListener("click", exportState);
 $("#btnImport").addEventListener("click", importState);
 
+/* ---------- dialog (alert/confirm/prompt con estilo) ---------- */
+let dlgResolve = null;
+let dlgMode = { input: false };
+
+function dlgClose(val) {
+  $("#dlg").classList.add("hidden");
+  const r = dlgResolve; dlgResolve = null;
+  if (r) r(val);
+}
+function dlgSetup(o) {
+  dlgMode = { input: !!o.input };
+  $("#dlgTitle").textContent = o.title || "";
+  $("#dlgMsg").textContent = o.msg || "";
+  const inp = $("#dlgInput");
+  inp.classList.toggle("hidden", !o.input);
+  if (o.input) { inp.value = o.value || ""; inp.rows = o.multiline ? 6 : 1; }
+  $("#dlgOk").textContent = o.okText || "Aceptar";
+  $("#dlgCancel").classList.toggle("hidden", !o.cancel);
+  $("#dlg .dlg-modal").classList.toggle("danger", !!o.danger);
+  $("#dlg").classList.remove("hidden");
+  setTimeout(() => { (o.input ? inp : $("#dlgOk")).focus(); }, 30);
+}
+function uiAlert(msg, opts = {}) {
+  return new Promise(res => { dlgResolve = () => res(); dlgSetup({ title: opts.title || "Aviso", msg, cancel: false, okText: opts.okText }); });
+}
+function uiConfirm(msg, opts = {}) {
+  return new Promise(res => { dlgResolve = (ok) => res(!!ok); dlgSetup({ title: opts.title || "Confirmar", msg, cancel: true, okText: opts.okText || "Aceptar", danger: opts.danger }); });
+}
+function uiPrompt(msg, opts = {}) {
+  return new Promise(res => { dlgResolve = (v) => res(v); dlgSetup({ title: opts.title || "", msg, input: true, value: opts.value, multiline: opts.multiline, cancel: true, okText: opts.okText || "Aceptar" }); });
+}
+$("#dlgOk").addEventListener("click", () => dlgClose(dlgMode.input ? $("#dlgInput").value : true));
+$("#dlgCancel").addEventListener("click", () => dlgClose(dlgMode.input ? null : false));
+$("#dlg").addEventListener("click", (e) => { if (e.target === $("#dlg")) dlgClose(dlgMode.input ? null : false); });
+$("#dlgInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) dlgClose($("#dlgInput").value); });
+
 /* ---------- export / import ---------- */
 async function exportState() {
-  if (!STATE) { alert("No hay torneo activo para exportar."); return; }
+  if (!STATE) { uiAlert("No hay torneo activo para exportar."); return; }
   const json = JSON.stringify(STATE);
   try {
     await navigator.clipboard.writeText(json);
     flashBtn($("#btnExport"), "✓ Copiado");
   } catch {
-    prompt("Copia este JSON:", json);
+    await uiPrompt("Copia este JSON:", { title: "Exportar", value: json, multiline: true, okText: "Listo" });
   }
 }
 
-function importState() {
-  const raw = prompt("Pega el JSON del torneo:");
+async function importState() {
+  const raw = await uiPrompt("Pega el JSON del torneo:", { title: "Importar torneo", multiline: true });
   if (!raw) return;
   let data;
   try { data = JSON.parse(raw.trim()); }
-  catch { alert("JSON inválido."); return; }
+  catch { await uiAlert("JSON inválido."); return; }
   if (!data || !data.teams || !(data.rounds || data.fixtures)) {
-    alert("El JSON no parece un torneo válido (falta teams/rounds/fixtures).");
+    await uiAlert("El JSON no parece un torneo válido (falta teams/rounds/fixtures).");
     return;
   }
   delete data._id; // entra como torneo activo, no atado a historial
@@ -1554,10 +1626,12 @@ function applyRoleUI() {
 }
 
 async function unlockEditing() {
-  const key = (prompt("Clave de organizador:") || "").trim();
+  const raw = await uiPrompt("Ingresa el PIN de organizador:", { title: "🔓 Modo edición", okText: "Entrar" });
+  if (raw == null) return;
+  const key = raw.trim();
   if (!key) return;
   const ok = await verifyAdmin(key);
-  if (!ok) { alert("Clave incorrecta."); return; }
+  if (!ok) { await uiAlert("PIN incorrecto.", { title: "Acceso denegado" }); return; }
   sessionStorage.setItem(KEY_ADMIN, key);
   IS_ADMIN = true; READONLY = false;
   if (evtSource) { evtSource.close(); evtSource = null; } // admin = fuente de verdad
