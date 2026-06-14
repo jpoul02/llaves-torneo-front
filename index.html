@@ -343,7 +343,12 @@
   .fx-team .fx-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fx-team.home { text-align: right; align-items: flex-end; }
   .fx-team.away { align-items: flex-start; }
-  .fx-tag { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .fx-tag {
+    display: inline-block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-weight: 700; padding: 2px 6px; border-radius: 5px; line-height: 1;
+  }
+  .fx-tag.local { background: color-mix(in srgb, var(--lime) 20%, transparent); color: var(--lime); }
+  .fx-tag.visit { background: color-mix(in srgb, var(--ink) 9%, transparent); color: var(--muted); }
   .fx-team.win .fx-name { color: var(--lime); font-weight: 700; }
   .fx-team.loss .fx-name { color: var(--muted); }
   .fx-score { display: flex; align-items: center; gap: 6px; }
@@ -1246,7 +1251,7 @@ function koMatchEl(m, r, i) {
     const nm = el("div", "fx-team");
     const nameSpan = el("span", "fx-name"); nameSpan.textContent = name || "—";
     nm.append(nameSpan);
-    if (name && !isBye) { const tag = el("span", "fx-tag"); tag.textContent = which === 1 ? "Local" : "Visitante"; nm.append(tag); }
+    if (name && !isBye) { const tag = el("span", "fx-tag " + (which === 1 ? "local" : "visit")); tag.textContent = which === 1 ? "Local" : "Visitante"; nm.append(tag); }
     if (isWin) nm.classList.add("win");
     if (m.winner && m.winner !== which && !isBye) nm.classList.add("loss");
     if (isBye || !name) nm.classList.add("loss");
@@ -1319,7 +1324,7 @@ function renderStandings() {
 function teamCell(name, side, tagText) {
   const cell = el("div", "fx-team " + side);
   const nm = el("span", "fx-name"); nm.textContent = name;
-  const tag = el("span", "fx-tag"); tag.textContent = tagText;
+  const tag = el("span", "fx-tag " + (side === "home" ? "local" : "visit")); tag.textContent = tagText;
   cell.append(nm, tag);
   return cell;
 }
