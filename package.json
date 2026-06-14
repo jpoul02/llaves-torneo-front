@@ -1,0 +1,15 @@
+{
+  "name": "llaves-torneo-front",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend estático de Torneo LLAVES",
+  "scripts": {
+    "start": "serve -s . -l ${PORT:-3000}"
+  },
+  "dependencies": {
+    "serve": "^14.2.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
