@@ -500,28 +500,53 @@
   .de-title.lose { color: var(--muted); }
   .de-title.final { color: var(--gold); }
 
-  /* ---------- print / PDF ---------- */
+  /* ---------- print template (#printArea) ---------- */
+  #printArea { display: none; }
   @media print {
-    :root {
-      --bg: #fff; --panel: #fff; --panel-2: #fff; --line: #c4c4c4;
-      --ink: #000; --muted: #555; --lime: #1d7a1d; --lime-dim: #1d7a1d; --gold: #9a7510;
-    }
-    @page { margin: 12mm; }
-    * { animation: none !important; box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { margin: 14mm; size: A4; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     body { background: #fff !important; }
-    body::before, .top-actions, footer.foot, .sync-pill, .ro-badge, #setupView, #waitingView, .overlay { display: none !important; }
-    .wrap { padding: 0 !important; max-width: 100% !important; }
-    header.top { border-bottom: 2px solid #000; margin-bottom: 14px; padding-bottom: 10px; }
-    .brand h1 { font-size: 34px !important; }
-    .brand h1 span { color: #1d7a1d !important; }
-    .bracket { overflow: visible !important; flex-wrap: nowrap; }
-    .league-grid { grid-template-columns: 1fr 1fr !important; }
-    .match, .fixture, .standings, .playoff, .champ, .champ-banner, .po-row input, .fx-score input {
-      border-color: #c4c4c4 !important;
+    body::before { display: none !important; }
+    body > *:not(#printArea) { display: none !important; }
+    #printArea { display: block; color: #15202b; font-family: "Spline Sans Mono", ui-monospace, monospace; }
+
+    .p-head { border-bottom: 3px solid #15202b; padding-bottom: 12px; margin-bottom: 20px; }
+    .p-brand { font-family: "Anton", sans-serif; font-size: 30px; letter-spacing: 0.02em; text-transform: uppercase; color: #15202b; }
+    .p-brand b { color: #2e7d32; }
+    .p-title { font-family: "Anton", sans-serif; font-size: 22px; text-transform: uppercase; margin-top: 6px; color: #15202b; }
+    .p-sub { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #6b7a90; margin-top: 4px; }
+
+    .p-champ {
+      display: flex; align-items: center; gap: 12px; margin: 0 0 22px;
+      border: 2px solid #d4af37; background: #fbf6e3; border-radius: 12px; padding: 14px 18px;
     }
-    input { color: #000 !important; }
-    .jornada, .match, .fixture, .hist-item { break-inside: avoid; }
-    .bracket-meta { color: #555 !important; }
+    .p-champ .c1 { font-size: 26px; }
+    .p-champ .c2 { font-family: "Anton", sans-serif; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #9a7510; }
+    .p-champ .c3 { font-family: "Anton", sans-serif; font-size: 24px; text-transform: uppercase; color: #15202b; line-height: 1; margin-top: 2px; }
+
+    .p-sec { font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-size: 14px; color: #2e7d32; margin: 22px 0 10px; border-bottom: 1px solid #d7dde6; padding-bottom: 4px; }
+    .p-sec.lose { color: #6b7a90; }
+    .p-sec.final { color: #9a7510; }
+
+    table.p-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    table.p-table th { background: #15202b; color: #fff; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 6px; text-align: center; }
+    table.p-table th.l, table.p-table td.l { text-align: left; padding-left: 12px; }
+    table.p-table td { padding: 8px 6px; text-align: center; font-size: 12px; border-bottom: 1px solid #e2e7ee; }
+    table.p-table tbody tr:nth-child(even) { background: #f5f7fa; }
+    table.p-table .pos { font-family: "Anton", sans-serif; }
+    table.p-table .pts { font-family: "Anton", sans-serif; color: #2e7d32; font-size: 14px; }
+
+    .p-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; }
+    .p-j { break-inside: avoid; margin-bottom: 8px; }
+    .p-j h4 { font-family: "Anton", sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7a90; margin-bottom: 4px; }
+    .p-m { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px dotted #d7dde6; font-size: 12px; break-inside: avoid; }
+    .p-m .ph { text-align: right; }
+    .p-m .pv { text-align: left; }
+    .p-m .sc { font-family: "Anton", sans-serif; white-space: nowrap; }
+    .p-m .w { font-weight: 700; color: #15202b; }
+    .p-m .l { color: #8a97a8; }
+    .p-m .bye { color: #aab3c0; font-style: italic; }
+    .p-foot { margin-top: 26px; padding-top: 10px; border-top: 1px solid #d7dde6; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: #97a1af; }
   }
 
   .hidden { display: none !important; }
@@ -553,6 +578,7 @@
       <button class="btn btn-ghost icon-btn" id="btnTheme" type="button" aria-label="Cambiar tema" title="Cambiar tema"><span id="themeIcon">☾</span></button>
       <button class="btn btn-ghost" id="btnPrint" type="button">🖨 Imprimir</button>
       <button class="btn btn-ghost" id="btnUnlock" type="button">🔓 Editar</button>
+      <button class="btn btn-ghost admin-only" id="btnLock" type="button">🔒 Salir edición</button>
       <button class="btn btn-ghost admin-only" id="btnSave" hidden>⭳ Guardar</button>
       <button class="btn btn-ghost admin-only" id="btnHistory" type="button">🗂 Historial</button>
       <button class="btn btn-ghost admin-only" id="btnExport" type="button">⤓ Exportar</button>
@@ -679,6 +705,9 @@
     </div>
   </div>
 </div>
+
+<!-- PRINT TEMPLATE (se llena al imprimir) -->
+<div id="printArea"></div>
 
 <script>
 "use strict";
@@ -827,12 +856,20 @@ async function saveCurrent() {
   const name = raw.trim();
   if (!name) return;
   const arr = getSaved();
+  // ¿ya existe uno con ese nombre (que no sea el actual)? → preguntar sobrescribir
+  let targetId = STATE._id || null;
+  const byName = arr.find(e => e.name === name && e.id !== STATE._id);
+  if (byName) {
+    const ow = await uiConfirm("Ya existe un torneo guardado llamado «" + name + "». ¿Sobrescribirlo?", { title: "Sobrescribir", okText: "Sobrescribir" });
+    if (ow) targetId = byName.id;
+    else if (targetId === null) targetId = "t" + Date.now(); // guardar como nuevo
+  }
+  if (!targetId) targetId = "t" + Date.now();
   const snapshot = JSON.parse(JSON.stringify(STATE));
-  // update if same id already loaded, else new
-  const entry = { id: STATE._id || ("t" + Date.now()), name, date: Date.now(), state: snapshot };
-  STATE._id = entry.id;
-  snapshot._id = entry.id;
-  const idx = arr.findIndex(e => e.id === entry.id);
+  snapshot._id = targetId;
+  const entry = { id: targetId, name, date: Date.now(), state: snapshot };
+  STATE._id = targetId;
+  const idx = arr.findIndex(e => e.id === targetId);
   if (idx >= 0) arr[idx] = entry; else arr.unshift(entry);
   setSaved(arr);
   save(STATE);
@@ -1773,7 +1810,135 @@ document.addEventListener("keydown", (e) => {
   else closeHistory();
 });
 $("#btnUnlock").addEventListener("click", unlockEditing);
-$("#btnPrint").addEventListener("click", () => window.print());
+$("#btnLock").addEventListener("click", lockEditing);
+$("#btnPrint").addEventListener("click", () => { buildPrintDoc(); window.print(); });
+
+/* ---------- print template ---------- */
+function buildPrintDoc() {
+  const a = $("#printArea"); a.innerHTML = "";
+  if (!STATE) return;
+  const head = el("div", "p-head");
+  const brand = el("div", "p-brand"); brand.innerHTML = "LLA<b>VES</b>";
+  const title = el("div", "p-title"); title.textContent = fmtLabel(STATE.format);
+  const sub = el("div", "p-sub");
+  sub.textContent = STATE.teams.length + " equipos · " + new Date().toLocaleDateString("es", { day: "2-digit", month: "long", year: "numeric" });
+  head.append(brand, title, sub); a.append(head);
+
+  const champ = printChampion();
+  if (champ && champ !== "BYE") a.append(printChampBox(champ));
+
+  if (STATE.format === "league") buildPrintLeague(a);
+  else if (STATE.format === "double") buildPrintDouble(a);
+  else buildPrintElim(a);
+
+  const foot = el("div", "p-foot"); foot.textContent = "Generado con LLAVES · " + new Date().toLocaleString("es");
+  a.append(foot);
+}
+
+function printChampion() {
+  if (STATE.format === "league") return STATE.leagueChamp || (STATE.playoff ? koChampion(STATE.playoff) : null);
+  if (STATE.format === "double") return deChampion(STATE);
+  const fr = STATE.rounds[STATE.rounds.length - 1][0];
+  return fr.winner ? (fr.winner === 1 ? fr.p1 : fr.p2) : null;
+}
+function printChampBox(name) {
+  const b = el("div", "p-champ");
+  const ic = el("span", "c1"); ic.textContent = "🏆";
+  const box = el("span");
+  const l = el("span", "c2"); l.textContent = "Campeón"; l.style.display = "block";
+  const w = el("span", "c3"); w.textContent = name; w.style.display = "block";
+  box.append(l, w); b.append(ic, box);
+  return b;
+}
+function printSec(text, cls) { const s = el("div", "p-sec" + (cls ? " " + cls : "")); s.textContent = text; return s; }
+
+function printScoreRow(home, away, hg, ag) {
+  const r = el("div", "p-m");
+  const ph = el("span", "ph"); ph.textContent = home;
+  const pv = el("span", "pv"); pv.textContent = away;
+  const sc = el("span", "sc");
+  const done = hg != null && ag != null;
+  sc.textContent = done ? (hg + " – " + ag) : "vs";
+  if (done) {
+    if (hg > ag) { ph.classList.add("w"); pv.classList.add("l"); }
+    else if (ag > hg) { pv.classList.add("w"); ph.classList.add("l"); }
+  }
+  r.append(ph, sc, pv); return r;
+}
+function printKoRow(p1, p2, winnerName) {
+  const r = el("div", "p-m");
+  const ph = el("span", "ph"); ph.textContent = p1 || "—";
+  const pv = el("span", "pv"); pv.textContent = p2 || "—";
+  const sc = el("span", "sc"); sc.textContent = "vs";
+  if (winnerName && winnerName !== "BYE") {
+    if (winnerName === p1) { ph.classList.add("w"); pv.classList.add("l"); }
+    else if (winnerName === p2) { pv.classList.add("w"); ph.classList.add("l"); }
+  }
+  if (p1 === "BYE") ph.classList.add("bye");
+  if (p2 === "BYE") pv.classList.add("bye");
+  r.append(ph, sc, pv); return r;
+}
+
+function buildPrintLeague(a) {
+  a.append(printSec("Tabla de posiciones"));
+  const rows = computeStandings(STATE);
+  const t = el("table", "p-table");
+  const thead = el("thead"); const htr = el("tr");
+  [["#", "pos"], ["Equipo", "l"], ["PJ"], ["G"], ["E"], ["P"], ["GF"], ["GC"], ["DIF"], ["PTS"]].forEach(([txt, cls]) => {
+    const th = el("th", cls); th.textContent = txt; htr.append(th);
+  });
+  thead.append(htr); t.append(thead);
+  const tb = el("tbody");
+  rows.forEach((r, i) => {
+    const tr = el("tr");
+    const cells = [["pos", i + 1], ["l", r.team], ["", r.pj], ["", r.g], ["", r.e], ["", r.p], ["", r.gf], ["", r.gc], ["", (r.dif > 0 ? "+" : "") + r.dif], ["pts", r.pts]];
+    cells.forEach(([cls, val]) => { const td = el("td", cls); td.textContent = val; tr.append(td); });
+    tb.append(tr);
+  });
+  t.append(tb); a.append(t);
+
+  a.append(printSec("Resultados"));
+  const grid = el("div", "p-grid");
+  const twoLegs = STATE.legs === 2; const half = STATE.fixtures.length / 2;
+  STATE.fixtures.forEach((round, ri) => {
+    const j = el("div", "p-j"); const h = el("h4");
+    let lab = "Jornada " + (ri + 1); if (twoLegs) lab += ri < half ? " · Ida" : " · Vuelta";
+    h.textContent = lab; j.append(h);
+    round.forEach(m => {
+      if (m.bye) { const r = el("div", "p-m"); const b = el("span", "bye"); b.textContent = m.bye + " descansa"; b.style.gridColumn = "1 / -1"; b.style.textAlign = "center"; r.append(b); j.append(r); return; }
+      j.append(printScoreRow(m.home, m.away, m.hg, m.ag));
+    });
+    grid.append(j);
+  });
+  a.append(grid);
+}
+
+function buildPrintElim(a) {
+  a.append(printSec("Llave"));
+  const grid = el("div", "p-grid");
+  STATE.rounds.forEach((round, ri) => {
+    const j = el("div", "p-j"); const h = el("h4"); h.textContent = roundName(ri, STATE.rounds.length); j.append(h);
+    round.forEach(m => j.append(printKoRow(m.p1, m.p2, m.winner ? (m.winner === 1 ? m.p1 : m.p2) : null)));
+    grid.append(j);
+  });
+  a.append(grid);
+}
+
+function buildPrintDouble(a) {
+  const sec = (text, cls, rounds, kind) => {
+    a.append(printSec(text, cls));
+    const grid = el("div", "p-grid");
+    rounds.forEach((round, ri) => {
+      const j = el("div", "p-j"); const h = el("h4"); h.textContent = deRoundLabel(kind, ri, rounds.length); j.append(h);
+      round.forEach(m => j.append(printKoRow(m.p1, m.p2, deWinner(m))));
+      grid.append(j);
+    });
+    a.append(grid);
+  };
+  sec("Llave de ganadores", "", STATE.wb, "wb");
+  if (STATE.lb.length) sec("Llave de perdedores", "lose", STATE.lb, "lb");
+  if (STATE.gf) sec("Gran final", "final", [[STATE.gf]], "gf");
+}
 $("#btnExport").addEventListener("click", exportState);
 $("#btnImport").addEventListener("click", importState);
 
@@ -1879,6 +2044,25 @@ async function unlockEditing() {
   STATE = (srv === undefined) ? STATE : srv;
   if (STATE) { if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim"); selectedFormat = STATE.format; setupNames = STATE.teams.slice(); showTournament(); }
   else { syncCount(8); showSetup(); }
+}
+
+async function lockEditing() {
+  sessionStorage.removeItem(KEY_ADMIN);
+  localStorage.removeItem(KEY_ADMIN);
+  IS_ADMIN = false; READONLY = true;
+  applyRoleUI();
+  closeHistory();
+  subscribeLive(); // vuelve a recibir cambios en vivo
+  const srv = await serverGet();
+  if (srv && srv.teams) {
+    STATE = srv;
+    if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim");
+    showTournament();
+  } else if (STATE) {
+    showTournament();
+  } else {
+    showWaiting();
+  }
 }
 
 /* ---------- boot ---------- */
