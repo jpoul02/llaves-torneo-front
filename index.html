@@ -83,6 +83,10 @@
     text-transform: uppercase;
   }
   .brand h1 span { color: var(--lime); }
+  .brand .brand-eyebrow {
+    font-size: 11px; letter-spacing: 0.34em; text-transform: uppercase;
+    color: var(--lime); font-weight: 700; margin-bottom: 4px; padding-left: 3px;
+  }
   .brand .sub {
     font-size: 12px; letter-spacing: 0.32em; text-transform: uppercase;
     color: var(--muted); padding-left: 3px;
@@ -612,8 +616,9 @@
 <div class="wrap">
   <header class="top">
     <div class="brand">
+      <div class="brand-eyebrow">JOTAPOL</div>
       <h1>LLA<span>VES</span></h1>
-      <div class="sub">Generador de torneos · por JOTAPOL</div>
+      <div class="sub">Generador de torneos</div>
     </div>
     <div class="top-actions">
       <span class="ro-badge" id="roBadge" hidden><span class="live-dot"></span><span id="roBadgeText">Solo lectura</span></span>
@@ -1989,7 +1994,13 @@ document.addEventListener("keydown", (e) => {
 $("#btnUnlock").addEventListener("click", unlockEditing);
 $("#btnLock").addEventListener("click", lockEditing);
 $("#btnPrint").addEventListener("click", () => window.print());
-window.addEventListener("beforeprint", buildPrintDoc); // arma el doc para botón Y Ctrl+P, en cualquier modo
+let _docTitle = document.title;
+window.addEventListener("beforeprint", () => {
+  buildPrintDoc(); // arma el doc para botón Y Ctrl+P, en cualquier modo
+  _docTitle = document.title;
+  if (STATE) document.title = "JOTAPOL - " + fmtLabel(STATE.format) + " - " + new Date().toLocaleDateString("es").replace(/\//g, "-");
+});
+window.addEventListener("afterprint", () => { document.title = _docTitle; });
 
 /* ---------- print template ---------- */
 function buildPrintDoc() {
