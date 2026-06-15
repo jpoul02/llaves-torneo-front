@@ -298,6 +298,9 @@
   /* ---------- league ---------- */
   .league-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(20px, 3vw, 40px); align-items: start; }
   @media (max-width: 860px) { .league-grid { grid-template-columns: 1fr; } }
+  .ko-rank { margin-top: 34px; max-width: 540px; }
+  .ko-rank:empty { display: none; }
+  .ko-rank .col-title { margin-bottom: 14px; }
   .col-title {
     font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: 0.12em;
     font-size: 14px; color: var(--muted); margin-bottom: 14px;
@@ -676,6 +679,7 @@
   <section id="bracketView" class="hidden">
     <div class="bracket-meta" id="bracketMeta"></div>
     <div class="bracket" id="bracket"></div>
+    <div class="ko-rank" id="bracketRanking"></div>
   </section>
 
   <!-- DOUBLE ELIMINATION -->
@@ -694,6 +698,7 @@
       <h3 class="de-title final">🔥 Gran final</h3>
       <div class="bracket" id="gfBracket"></div>
     </div>
+    <div class="ko-rank" id="doubleRanking"></div>
   </section>
 
   <!-- LEAGUE -->
@@ -1156,6 +1161,70 @@ function renderBracket() {
   root.append(champCol);
 
   renderMeta();
+  renderKoRank($("#bracketRanking"), STATE);
+}
+
+/* ---------- posiciones de eliminación / doble (ranking final) ---------- */
+function knockoutStandings(state) {
+  const teams = state.teams.filter(t => t !== "BYE");
+  if (state.format === "double") {
+    const stage = {};
+    state.lb.forEach((round, ri) => round.forEach(m => {
+      const w = deWinner(m); if (!w) return;
+      const loser = w === m.p1 ? m.p2 : m.p1;
+      if (loser && loser !== "BYE") stage[loser] = ri + 1;
+    }));
+    let champ = null, runner = null;
+    if (state.gf) {
+      const w = deWinner(state.gf);
+      if (w && w !== "BYE") { champ = w; runner = w === state.gf.p1 ? state.gf.p2 : state.gf.p1; if (runner && runner !== "BYE") stage[runner] = state.lb.length + 1; }
+    }
+    if (champ) stage[champ] = state.lb.length + 2;
+    const rows = teams.map(t => ({ team: t, s: stage[t] || 0 }));
+    rows.sort((a, b) => b.s - a.s || a.team.localeCompare(b.team));
+    return rows.map((x, i) => ({ pos: i + 1, team: x.team, label: x.team === champ ? "Campeón" : x.team === runner ? "Subcampeón" : (x.s ? "Eliminado" : "—") }));
+  }
+  // single elim
+  const rounds = state.rounds, R = rounds.length;
+  const elimAt = {};
+  rounds.forEach((round, ri) => round.forEach(m => {
+    const w = m.winner ? (m.winner === 1 ? m.p1 : m.p2) : null; if (!w) return;
+    const loser = w === m.p1 ? m.p2 : m.p1;
+    if (loser && loser !== "BYE") elimAt[loser] = ri;
+  }));
+  const fm = rounds[R - 1][0];
+  const champ = fm.winner ? (fm.winner === 1 ? fm.p1 : fm.p2) : null;
+  if (champ && champ !== "BYE") elimAt[champ] = R;
+  const rows = teams.map(t => ({ team: t, r: (t in elimAt) ? elimAt[t] : -1 }));
+  rows.sort((a, b) => b.r - a.r || a.team.localeCompare(b.team));
+  return rows.map((x, i) => ({ pos: i + 1, team: x.team, label: koLabel(x.r, R) }));
+}
+function koLabel(r, R) {
+  if (r === R) return "Campeón";
+  if (r === R - 1) return "Subcampeón";
+  if (r < 0) return "—";
+  return "Hasta " + roundName(r, R);
+}
+function renderKoRank(container, state) {
+  if (!container) return;
+  container.innerHTML = "";
+  const rows = knockoutStandings(state);
+  if (!rows.length) return;
+  const title = el("h3", "col-title"); title.textContent = "Posiciones";
+  container.append(title);
+  const t = el("table", "standings");
+  const thead = el("thead"); const htr = el("tr");
+  [["#", "pos"], ["Equipo", "team-col"], ["Resultado", ""]].forEach(([txt, cls]) => { const th = el("th", cls); th.textContent = txt; htr.append(th); });
+  thead.append(htr); t.append(thead);
+  const tb = el("tbody");
+  rows.forEach(r => {
+    const tr = el("tr"); if (r.pos === 1) tr.classList.add("qual");
+    const c1 = el("td", "pos"); c1.textContent = r.pos;
+    const c2 = el("td", "team-col"); c2.textContent = r.team;
+    const c3 = el("td"); c3.textContent = r.label; if (r.pos === 1) c3.classList.add("pts");
+    tr.append(c1, c2, c3); tb.append(tr);
+  });
+  t.append(tb); container.append(t);
 }
 
 function slotEl(m, which, rounds, r, i) {
@@ -1311,6 +1380,7 @@ function renderDouble() {
   renderDeBracket($("#lbBracket"), STATE.lb.length ? STATE.lb : [], "lb");
   renderDeBracket($("#gfBracket"), STATE.gf ? [[STATE.gf]] : [], "gf");
   $("#lbBracket").parentElement.style.display = STATE.lb.length ? "" : "none";
+  renderKoRank($("#doubleRanking"), STATE);
 }
 
 function deMeta() {
@@ -2065,6 +2135,26 @@ function buildPrintElim(a) {
   center.append(tro, treeMatch(finalM.p1, finalM.p2, champ, "final"), clab);
   wrap.append(left, center, right);
   a.append(wrap);
+  printKoStandings(a);
+}
+
+function printKoStandings(a) {
+  const rows = knockoutStandings(STATE);
+  if (!rows.length) return;
+  a.append(printSec("Posiciones"));
+  const t = el("table", "p-table");
+  const thead = el("thead"); const htr = el("tr");
+  [["#", "pos"], ["Equipo", "l"], ["Resultado", "l"]].forEach(([txt, cls]) => { const th = el("th", cls); th.textContent = txt; htr.append(th); });
+  thead.append(htr); t.append(thead);
+  const tb = el("tbody");
+  rows.forEach(r => {
+    const tr = el("tr");
+    const c1 = el("td", "pos"); c1.textContent = r.pos;
+    const c2 = el("td", "l"); c2.textContent = r.team;
+    const c3 = el("td", "l"); c3.textContent = r.label;
+    tr.append(c1, c2, c3); tb.append(tr);
+  });
+  t.append(tb); a.append(t);
 }
 
 // bracket de un solo lado (izq→der) para WB/LB de doble elim
@@ -2086,6 +2176,7 @@ function buildPrintDouble(a) {
     wrap.append(treeMatch(STATE.gf.p1, STATE.gf.p2, deWinner(STATE.gf), "final"));
     a.append(wrap);
   }
+  printKoStandings(a);
 }
 $("#btnExport").addEventListener("click", exportState);
 $("#btnImport").addEventListener("click", importState);
