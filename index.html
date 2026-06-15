@@ -1885,21 +1885,8 @@ document.addEventListener("keydown", (e) => {
 });
 $("#btnUnlock").addEventListener("click", unlockEditing);
 $("#btnLock").addEventListener("click", lockEditing);
-$("#btnPrint").addEventListener("click", async () => {
-  try {
-    const resp = await fetch(API_BASE + '/api/generate-pdf');
-    if (!resp.ok) {
-      buildPrintDoc();
-      return window.print();
-    }
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'bracket.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  } catch (e) {
-    console.error('PDF generation failed, falling back to print', e);
-    buildPrintDoc(); window.print();
-  }
-});
+$("#btnPrint").addEventListener("click", () => window.print());
+window.addEventListener("beforeprint", buildPrintDoc); // arma el doc para botón Y Ctrl+P, en cualquier modo
 
 /* ---------- print template ---------- */
 function buildPrintDoc() {
