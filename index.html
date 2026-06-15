@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>LLAVES — Generador de Torneos</title>
+<title>LLAVES — Generador de Torneos · JOTAPOL</title>
+<meta name="author" content="JOTAPOL" />
+<meta name="copyright" content="© 2026 JOTAPOL. Todos los derechos reservados." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -595,6 +597,7 @@
     color: #3f4c61; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
     display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   }
+  footer.foot .copyright { color: var(--lime-dim); font-weight: 600; letter-spacing: 0.1em; }
   footer.foot kbd {
     background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px;
     padding: 2px 7px; color: var(--muted); font-family: inherit; font-size: 10px;
@@ -610,7 +613,7 @@
   <header class="top">
     <div class="brand">
       <h1>LLA<span>VES</span></h1>
-      <div class="sub">Generador de torneo · eliminación directa</div>
+      <div class="sub">Generador de torneos · por JOTAPOL</div>
     </div>
     <div class="top-actions">
       <span class="ro-badge" id="roBadge" hidden><span class="live-dot"></span><span id="roBadgeText">Solo lectura</span></span>
@@ -719,6 +722,7 @@
 
   <footer class="foot">
     <span id="footHint">Anota los goles de cada partido</span>
+    <span class="copyright">© 2026 JOTAPOL · Todos los derechos reservados</span>
     <span class="sync-pill"><span class="live-dot"></span><span id="syncPill">Sincronizado en la nube</span></span>
   </footer>
 </div>
@@ -2004,7 +2008,8 @@ function buildPrintDoc() {
   else if (STATE.format === "double") buildPrintDouble(a);
   else buildPrintElim(a);
 
-  const foot = el("div", "p-foot"); foot.textContent = "Generado con LLAVES · " + new Date().toLocaleString("es");
+  const foot = el("div", "p-foot");
+  foot.textContent = "© 2026 JOTAPOL · Generado con LLAVES · " + new Date().toLocaleString("es");
   a.append(foot);
 }
 
