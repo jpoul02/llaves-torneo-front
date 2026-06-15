@@ -500,53 +500,60 @@
   .de-title.lose { color: var(--muted); }
   .de-title.final { color: var(--gold); }
 
-  /* ---------- print template (#printArea) ---------- */
+  /* ---------- print poster (#printArea) ---------- */
   #printArea { display: none; }
   @media print {
-    @page { margin: 14mm; size: A4; }
+    @page { margin: 0; size: A4; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    body { background: #fff !important; }
+    body { background: #fff; }
     body::before { display: none !important; }
     body > *:not(#printArea) { display: none !important; }
-    #printArea { display: block; color: #15202b; font-family: "Spline Sans Mono", ui-monospace, monospace; }
-
-    .p-head { border-bottom: 3px solid #15202b; padding-bottom: 12px; margin-bottom: 20px; }
-    .p-brand { font-family: "Anton", sans-serif; font-size: 30px; letter-spacing: 0.02em; text-transform: uppercase; color: #15202b; }
-    .p-brand b { color: #2e7d32; }
-    .p-title { font-family: "Anton", sans-serif; font-size: 22px; text-transform: uppercase; margin-top: 6px; color: #15202b; }
-    .p-sub { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #6b7a90; margin-top: 4px; }
-
-    .p-champ {
-      display: flex; align-items: center; gap: 12px; margin: 0 0 22px;
-      border: 2px solid #d4af37; background: #fbf6e3; border-radius: 12px; padding: 14px 18px;
+    #printArea {
+      display: block; min-height: 297mm;
+      background:
+        radial-gradient(900px 480px at 82% -8%, rgba(212,255,63,0.12), transparent 60%),
+        radial-gradient(760px 420px at -5% 108%, rgba(96,140,255,0.10), transparent 55%),
+        linear-gradient(150deg, #0c1320 0%, #0a0e14 60%);
+      color: #e8edf5; font-family: "Spline Sans Mono", ui-monospace, monospace;
+      padding: 30px 32px 36px;
     }
-    .p-champ .c1 { font-size: 26px; }
-    .p-champ .c2 { font-family: "Anton", sans-serif; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #9a7510; }
-    .p-champ .c3 { font-family: "Anton", sans-serif; font-size: 24px; text-transform: uppercase; color: #15202b; line-height: 1; margin-top: 2px; }
+    .p-head { text-align: center; border-bottom: 2px solid #243044; padding-bottom: 16px; }
+    .p-brand { font-family: "Anton", sans-serif; font-size: 50px; letter-spacing: 0.04em; text-transform: uppercase; color: #e8edf5; line-height: 0.86; }
+    .p-brand b { color: #d4ff3f; font-weight: 400; }
+    .p-title { font-family: "Anton", sans-serif; font-size: 19px; text-transform: uppercase; color: #d4ff3f; margin-top: 10px; letter-spacing: 0.1em; }
+    .p-sub { font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: #6b7a90; margin-top: 6px; }
 
-    .p-sec { font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-size: 14px; color: #2e7d32; margin: 22px 0 10px; border-bottom: 1px solid #d7dde6; padding-bottom: 4px; }
+    .p-hero { text-align: center; padding: 26px 0 20px; }
+    .p-hero .tro { font-size: 58px; line-height: 1; }
+    .p-hero .lab { font-family: "Anton", sans-serif; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: #ffce4d; margin-top: 10px; }
+    .p-hero .who { font-family: "Anton", sans-serif; font-size: 42px; text-transform: uppercase; color: #fff; line-height: 1; margin-top: 4px; word-break: break-word; }
+    .p-hero .who.pending { color: #5a6b80; font-size: 26px; }
+
+    .p-sec { font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: 0.12em; font-size: 14px; color: #d4ff3f; margin: 18px 0 10px; display: flex; align-items: center; gap: 10px; }
+    .p-sec::after { content: ""; flex: 1; height: 1px; background: #243044; }
     .p-sec.lose { color: #6b7a90; }
-    .p-sec.final { color: #9a7510; }
+    .p-sec.final { color: #ffce4d; }
 
-    table.p-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    table.p-table th { background: #15202b; color: #fff; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 6px; text-align: center; }
+    table.p-table { width: 100%; border-collapse: collapse; background: #111722; border: 1px solid #243044; border-radius: 10px; overflow: hidden; }
+    table.p-table th { background: #161e2c; color: #6b7a90; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 9px 6px; text-align: center; }
     table.p-table th.l, table.p-table td.l { text-align: left; padding-left: 12px; }
-    table.p-table td { padding: 8px 6px; text-align: center; font-size: 12px; border-bottom: 1px solid #e2e7ee; }
-    table.p-table tbody tr:nth-child(even) { background: #f5f7fa; }
-    table.p-table .pos { font-family: "Anton", sans-serif; }
-    table.p-table .pts { font-family: "Anton", sans-serif; color: #2e7d32; font-size: 14px; }
+    table.p-table td { padding: 9px 6px; text-align: center; font-size: 12px; border-bottom: 1px solid #1a2230; }
+    table.p-table tbody tr:last-child td { border-bottom: 0; }
+    table.p-table tbody tr:first-child td { background: rgba(212,255,63,0.06); }
+    table.p-table .pos { font-family: "Anton", sans-serif; color: #6b7a90; }
+    table.p-table .pts { font-family: "Anton", sans-serif; color: #d4ff3f; font-size: 14px; }
 
     .p-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; }
     .p-j { break-inside: avoid; margin-bottom: 8px; }
-    .p-j h4 { font-family: "Anton", sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7a90; margin-bottom: 4px; }
-    .p-m { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px dotted #d7dde6; font-size: 12px; break-inside: avoid; }
+    .p-j h4 { font-family: "Anton", sans-serif; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7a90; margin-bottom: 6px; }
+    .p-m { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 7px 10px; background: #111722; border: 1px solid #243044; border-radius: 8px; margin-bottom: 5px; font-size: 12px; break-inside: avoid; }
     .p-m .ph { text-align: right; }
     .p-m .pv { text-align: left; }
-    .p-m .sc { font-family: "Anton", sans-serif; white-space: nowrap; }
-    .p-m .w { font-weight: 700; color: #15202b; }
-    .p-m .l { color: #8a97a8; }
-    .p-m .bye { color: #aab3c0; font-style: italic; }
-    .p-foot { margin-top: 26px; padding-top: 10px; border-top: 1px solid #d7dde6; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: #97a1af; }
+    .p-m .sc { font-family: "Anton", sans-serif; white-space: nowrap; color: #aab3c0; }
+    .p-m .w { font-weight: 700; color: #d4ff3f; }
+    .p-m .l { color: #5a6b80; }
+    .p-m .bye { color: #46566b; font-style: italic; }
+    .p-foot { margin-top: 24px; padding-top: 10px; border-top: 1px solid #243044; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #46566b; text-align: center; }
   }
 
   .hidden { display: none !important; }
@@ -1878,7 +1885,21 @@ document.addEventListener("keydown", (e) => {
 });
 $("#btnUnlock").addEventListener("click", unlockEditing);
 $("#btnLock").addEventListener("click", lockEditing);
-$("#btnPrint").addEventListener("click", () => { buildPrintDoc(); window.print(); });
+$("#btnPrint").addEventListener("click", async () => {
+  try {
+    const resp = await fetch(API_BASE + '/api/generate-pdf');
+    if (!resp.ok) {
+      buildPrintDoc();
+      return window.print();
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'bracket.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error('PDF generation failed, falling back to print', e);
+    buildPrintDoc(); window.print();
+  }
+});
 
 /* ---------- print template ---------- */
 function buildPrintDoc() {
@@ -1891,8 +1912,7 @@ function buildPrintDoc() {
   sub.textContent = STATE.teams.length + " equipos · " + new Date().toLocaleDateString("es", { day: "2-digit", month: "long", year: "numeric" });
   head.append(brand, title, sub); a.append(head);
 
-  const champ = printChampion();
-  if (champ && champ !== "BYE") a.append(printChampBox(champ));
+  a.append(printHero());
 
   if (STATE.format === "league") buildPrintLeague(a);
   else if (STATE.format === "double") buildPrintDouble(a);
@@ -1908,14 +1928,16 @@ function printChampion() {
   const fr = STATE.rounds[STATE.rounds.length - 1][0];
   return fr.winner ? (fr.winner === 1 ? fr.p1 : fr.p2) : null;
 }
-function printChampBox(name) {
-  const b = el("div", "p-champ");
-  const ic = el("span", "c1"); ic.textContent = "🏆";
-  const box = el("span");
-  const l = el("span", "c2"); l.textContent = "Campeón"; l.style.display = "block";
-  const w = el("span", "c3"); w.textContent = name; w.style.display = "block";
-  box.append(l, w); b.append(ic, box);
-  return b;
+function printHero() {
+  const h = el("div", "p-hero");
+  const t = el("div", "tro"); t.textContent = "🏆";
+  const lab = el("div", "lab");
+  const who = el("div", "who");
+  const champ = printChampion();
+  if (champ && champ !== "BYE") { lab.textContent = "Campeón"; who.textContent = champ; }
+  else { t.style.opacity = "0.35"; lab.textContent = "Final"; who.textContent = "Por definir"; who.classList.add("pending"); }
+  h.append(t, lab, who);
+  return h;
 }
 function printSec(text, cls) { const s = el("div", "p-sec" + (cls ? " " + cls : "")); s.textContent = text; return s; }
 
