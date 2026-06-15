@@ -823,6 +823,10 @@ async function doPush() {
       body: JSON.stringify({ state: STATE || null }),
     });
     setSyncPill(true);
+    // si el torneo activo está en el historial, mantener su snapshot en la base
+    if (STATE && STATE._id && STATE._name) {
+      historyUpsert({ id: STATE._id, name: STATE._name, date: STATE._date || Date.now(), state: STATE });
+    }
   } catch { setSyncPill(false); }
 }
 
@@ -846,13 +850,8 @@ function applyRemote(state) {
 
 /* ---------- persistence ---------- */
 function save(state) {
-  // local cache (admin convenience) + push to server
+  // cache local (conveniencia admin) + push al server (estado activo + historial)
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
-  if (state && state._id) {
-    const arr = getSaved();
-    const idx = arr.findIndex(e => e.id === state._id);
-    if (idx >= 0) { arr[idx].state = JSON.parse(JSON.stringify(state)); setSaved(arr); }
-  }
   schedulePush();
 }
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } }
@@ -870,9 +869,33 @@ function toggleTheme() {
   applyTheme(cur === "light" ? "dark" : "light");
 }
 
-/* ---------- saved tournaments (history) ---------- */
-function getSaved() { try { return JSON.parse(localStorage.getItem(KEY_SAVED)) || []; } catch { return []; } }
-function setSaved(arr) { localStorage.setItem(KEY_SAVED, JSON.stringify(arr)); }
+/* ---------- saved tournaments (history en Postgres) ---------- */
+let historyCache = [];
+async function historyList() {
+  try { const r = await fetch(API_BASE + "/api/history", { cache: "no-store" }); const j = await r.json(); return j.items || []; }
+  catch { return []; }
+}
+async function historyUpsert(entry) {
+  try {
+    await fetch(API_BASE + "/api/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-key": adminKey() },
+      body: JSON.stringify({ entry }),
+    });
+  } catch { /* ignore */ }
+}
+async function historyDelete(id) {
+  try { await fetch(API_BASE + "/api/history?id=" + encodeURIComponent(id), { method: "DELETE", headers: { "x-admin-key": adminKey() } }); }
+  catch { /* ignore */ }
+}
+// migración: si quedan torneos en localStorage, súbelos a la base y limpia
+async function migrateLocalHistory() {
+  if (!IS_ADMIN) return;
+  let local; try { local = JSON.parse(localStorage.getItem(KEY_SAVED)) || []; } catch { local = []; }
+  if (!local.length) return;
+  for (const e of local) await historyUpsert(e);
+  localStorage.removeItem(KEY_SAVED);
+}
 
 function fmtDate(ts) {
   const d = new Date(ts);
@@ -906,33 +929,26 @@ async function saveCurrent() {
   if (raw == null) return;
   const name = raw.trim();
   if (!name) return;
-  const arr = getSaved();
-  // ¿ya existe uno con ese nombre (que no sea el actual)? → preguntar sobrescribir
+  const arr = await historyList();
   let targetId = STATE._id || null;
   const byName = arr.find(e => e.name === name && e.id !== STATE._id);
   if (byName) {
     const ow = await uiConfirm("Ya existe un torneo guardado llamado «" + name + "». ¿Sobrescribirlo?", { title: "Sobrescribir", okText: "Sobrescribir" });
     if (ow) targetId = byName.id;
-    else if (targetId === null) targetId = "t" + Date.now(); // guardar como nuevo
+    else if (targetId === null) targetId = "t" + Date.now();
   }
   if (!targetId) targetId = "t" + Date.now();
+  const date = (byName && targetId === byName.id) ? byName.date : Date.now();
+  STATE._id = targetId; STATE._name = name; STATE._date = date;
   const snapshot = JSON.parse(JSON.stringify(STATE));
-  snapshot._id = targetId;
-  const entry = { id: targetId, name, date: Date.now(), state: snapshot };
-  STATE._id = targetId;
-  const idx = arr.findIndex(e => e.id === targetId);
-  if (idx >= 0) arr[idx] = entry; else arr.unshift(entry);
-  setSaved(arr);
+  await historyUpsert({ id: targetId, name, date, state: snapshot });
   save(STATE);
   flashBtn($("#btnSave"), "✓ Guardado");
 }
 
-function loadSavedTournament(id) {
-  const arr = getSaved();
-  const entry = arr.find(e => e.id === id);
-  if (!entry) return;
+function loadSavedTournament(entry) {
   STATE = JSON.parse(JSON.stringify(entry.state));
-  STATE._id = id;
+  STATE._id = entry.id; STATE._name = entry.name; STATE._date = entry.date;
   if (!STATE.format) STATE.format = STATE.wb ? "double" : (STATE.fixtures ? "league" : "elim");
   selectedFormat = STATE.format;
   setupNames = STATE.teams.slice();
@@ -944,7 +960,7 @@ function loadSavedTournament(id) {
 async function deleteSavedTournament(id) {
   const ok = await uiConfirm("¿Borrar este torneo del historial?", { title: "Borrar", okText: "Borrar", danger: true });
   if (!ok) return;
-  setSaved(getSaved().filter(e => e.id !== id));
+  await historyDelete(id);
   renderHistory();
 }
 
@@ -954,14 +970,16 @@ function flashBtn(btn, text) {
   setTimeout(() => { btn.textContent = old; }, 1400);
 }
 
-function openHistory() { renderHistory(); $("#historyModal").classList.remove("hidden"); }
+function openHistory() { $("#historyModal").classList.remove("hidden"); renderHistory(); }
 function closeHistory() { $("#historyModal").classList.add("hidden"); }
 
-function renderHistory() {
+async function renderHistory() {
   const list = $("#historyList");
-  const arr = getSaved().sort((a, b) => b.date - a.date);
-  $("#historyHint").textContent = arr.length + " torneo(s) guardado(s) en este navegador.";
   list.innerHTML = "";
+  $("#historyHint").textContent = "Cargando…";
+  const arr = (await historyList()).sort((a, b) => b.date - a.date);
+  historyCache = arr;
+  $("#historyHint").textContent = arr.length + " torneo(s) guardado(s) en la nube.";
   if (!arr.length) {
     const e = el("div", "history-empty");
     e.textContent = "Sin torneos guardados. Usa ⭳ Guardar para añadir el actual.";
@@ -981,7 +999,7 @@ function renderHistory() {
     info.append(nm, meta);
     const actions = el("div", "hist-actions");
     const bLoad = el("button", "btn btn-primary"); bLoad.textContent = "Cargar";
-    bLoad.addEventListener("click", () => loadSavedTournament(entry.id));
+    bLoad.addEventListener("click", () => loadSavedTournament(entry));
     const bDel = el("button", "btn btn-ghost btn-danger"); bDel.textContent = "✕";
     bDel.addEventListener("click", () => deleteSavedTournament(entry.id));
     actions.append(bLoad, bDel);
@@ -2294,6 +2312,7 @@ async function unlockEditing() {
   IS_ADMIN = true; READONLY = false;
   if (evtSource) { evtSource.close(); evtSource = null; } // admin = fuente de verdad
   applyRoleUI();
+  migrateLocalHistory();
   // re-sync from server then show
   const srv = await serverGet();
   STATE = (srv === undefined) ? STATE : srv;
@@ -2344,6 +2363,7 @@ async function lockEditing() {
   }
 
   if (!IS_ADMIN) subscribeLive(); // viewers reciben cambios en vivo
+  else migrateLocalHistory();     // sube historial local viejo a la base (una vez)
 })();
 </script>
 </body>
