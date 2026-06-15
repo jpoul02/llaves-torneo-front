@@ -553,6 +553,35 @@
     .p-m .w { font-weight: 700; color: #d4ff3f; }
     .p-m .l { color: #5a6b80; }
     .p-m .bye { color: #46566b; font-style: italic; }
+
+    /* --- bracket visual --- */
+    .pb { display: flex; align-items: stretch; justify-content: center; margin: 6px 0 4px; }
+    .pb.gf-wrap { padding: 6px 0 2px; }
+    .pb-side { display: flex; align-items: stretch; flex: 1; }
+    .pb-side.right { flex-direction: row-reverse; }
+    .pb-col { display: flex; flex-direction: column; justify-content: space-around; flex: 1; min-width: 0; padding: 0 11px; }
+    .pbm {
+      position: relative; background: #111722; border: 1px solid #2a3550; border-radius: 7px;
+      overflow: hidden; margin: 5px 0; box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+    }
+    .pbm .s { padding: 5px 8px; font-size: 9.5px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cfd7e3; }
+    .pbm .s + .s { border-top: 1px solid #2a3550; }
+    .pbm .s.w { color: #d4ff3f; font-weight: 700; }
+    .pbm .s.w::before { content: "▸ "; color: #d4ff3f; }
+    .pbm .s.l { color: #586a80; }
+    .pbm .s.tbd { color: #3c4961; font-style: italic; }
+    .pbm .s.bye { color: #46566b; }
+    .pbm.final { border-color: #d4ff3f; box-shadow: 0 0 0 1px rgba(212,255,63,0.25); }
+    /* conectores horizontales hacia el centro */
+    .pb-side.left .pbm::after { content: ""; position: absolute; left: 100%; top: 50%; width: 11px; height: 1.5px; background: #2a3550; }
+    .pb-side.right .pbm::after { content: ""; position: absolute; right: 100%; top: 50%; width: 11px; height: 1.5px; background: #2a3550; }
+    .pb-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 132px; padding: 0 6px; }
+    .pb-center .pb-tro { font-size: 46px; line-height: 1; margin-bottom: 8px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); }
+    .pb-center .pbm { width: 116px; }
+    .pb-center .pb-clab { font-family: "Anton", sans-serif; text-transform: uppercase; font-size: 15px; color: #ffce4d; margin-top: 8px; text-align: center; line-height: 1; word-break: break-word; }
+    .pb-center .pb-clab.pending { color: #5a6b80; font-size: 11px; letter-spacing: 0.12em; }
+    .pb-side.left .pb-col:first-child .pbm, .pb-side.right .pb-col:first-child .pbm { min-width: 92px; }
+
     .p-foot { margin-top: 24px; padding-top: 10px; border-top: 1px solid #243044; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #46566b; text-align: center; }
   }
 
@@ -1989,31 +2018,74 @@ function buildPrintLeague(a) {
   a.append(grid);
 }
 
+/* --- bracket visual para print --- */
+function treeSlot(name, winnerName) {
+  const s = el("div", "s");
+  s.textContent = name ? name : "—";
+  if (name && name !== "BYE") {
+    if (winnerName === name) s.classList.add("w");
+    else if (winnerName && winnerName !== "BYE") s.classList.add("l");
+  }
+  if (!name) s.classList.add("tbd");
+  if (name === "BYE") s.classList.add("bye");
+  return s;
+}
+function treeMatch(p1, p2, winnerName, extraCls) {
+  const box = el("div", "pbm" + (extraCls ? " " + extraCls : ""));
+  box.append(treeSlot(p1, winnerName), treeSlot(p2, winnerName));
+  return box;
+}
+function elimWinnerName(m) { return m.winner ? (m.winner === 1 ? m.p1 : m.p2) : null; }
+
+// columna por ronda (un solo lado)
+function treeColumn(matches, winnerFn) {
+  const col = el("div", "pb-col");
+  matches.forEach(m => col.append(treeMatch(m.p1, m.p2, winnerFn(m))));
+  return col;
+}
+
 function buildPrintElim(a) {
-  a.append(printSec("Llave"));
-  const grid = el("div", "p-grid");
-  STATE.rounds.forEach((round, ri) => {
-    const j = el("div", "p-j"); const h = el("h4"); h.textContent = roundName(ri, STATE.rounds.length); j.append(h);
-    round.forEach(m => j.append(printKoRow(m.p1, m.p2, m.winner ? (m.winner === 1 ? m.p1 : m.p2) : null)));
-    grid.append(j);
-  });
-  a.append(grid);
+  a.append(printSec("Cuadro"));
+  const rounds = STATE.rounds;
+  const R = rounds.length;
+  const finalM = rounds[R - 1][0];
+  const wrap = el("div", "pb");
+  const left = el("div", "pb-side left");
+  const right = el("div", "pb-side right");
+  for (let r = 0; r < R - 1; r++) {
+    const mid = rounds[r].length / 2;
+    left.append(treeColumn(rounds[r].slice(0, mid), elimWinnerName));
+    right.append(treeColumn(rounds[r].slice(mid), elimWinnerName));
+  }
+  const center = el("div", "pb-center");
+  const tro = el("div", "pb-tro"); tro.textContent = "🏆";
+  const champ = elimWinnerName(finalM);
+  const clab = el("div", "pb-clab"); clab.textContent = champ || "Final";
+  if (!champ) clab.classList.add("pending");
+  center.append(tro, treeMatch(finalM.p1, finalM.p2, champ, "final"), clab);
+  wrap.append(left, center, right);
+  a.append(wrap);
+}
+
+// bracket de un solo lado (izq→der) para WB/LB de doble elim
+function oneSidedBracket(rounds) {
+  const wrap = el("div", "pb");
+  const side = el("div", "pb-side left");
+  rounds.forEach(round => side.append(treeColumn(round, deWinner)));
+  wrap.append(side);
+  return wrap;
 }
 
 function buildPrintDouble(a) {
-  const sec = (text, cls, rounds, kind) => {
-    a.append(printSec(text, cls));
-    const grid = el("div", "p-grid");
-    rounds.forEach((round, ri) => {
-      const j = el("div", "p-j"); const h = el("h4"); h.textContent = deRoundLabel(kind, ri, rounds.length); j.append(h);
-      round.forEach(m => j.append(printKoRow(m.p1, m.p2, deWinner(m))));
-      grid.append(j);
-    });
-    a.append(grid);
-  };
-  sec("Llave de ganadores", "", STATE.wb, "wb");
-  if (STATE.lb.length) sec("Llave de perdedores", "lose", STATE.lb, "lb");
-  if (STATE.gf) sec("Gran final", "final", [[STATE.gf]], "gf");
+  a.append(printSec("Llave de ganadores"));
+  a.append(oneSidedBracket(STATE.wb));
+  if (STATE.lb.length) { a.append(printSec("Llave de perdedores", "lose")); a.append(oneSidedBracket(STATE.lb)); }
+  if (STATE.gf) {
+    a.append(printSec("Gran final", "final"));
+    const wrap = el("div", "pb gf-wrap");
+    wrap.append(treeMatch(STATE.gf.p1, STATE.gf.p2, deWinner(STATE.gf), "final"));
+    a.append(wrap);
+  }
 }
 $("#btnExport").addEventListener("click", exportState);
 $("#btnImport").addEventListener("click", importState);
